@@ -1,0 +1,6 @@
+# subgraph
+generated/
+build/
+
+# typescript
+node_modules/
