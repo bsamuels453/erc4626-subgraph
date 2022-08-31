@@ -13,8 +13,8 @@ export function getOrCreateAccount(address: Address): Account {
 }
 
 export function getOrCreateAccountPosition(
-  account: Account,
-  vault: ERC4626Vault
+  vault: ERC4626Vault,
+  account: Account
 ): AccountPosition {
   let id = account.id.concat(vault.id);
 

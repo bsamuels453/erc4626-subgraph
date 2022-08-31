@@ -9,6 +9,7 @@ import { Deposit, Withdraw, Transfer } from "../generated/ERC4626Vault/ERC4626";
 import {
   CostBasisLot,
   DepositEvent,
+  Earnings,
   ERC20Token as ERC20Entity,
   ERC4626Vault as ERC4626Entity,
   ERC4626Vault,
@@ -20,7 +21,10 @@ import {
   getOrCreateAccountPosition,
 } from "./entity/AccountEntity";
 import { getERC4626orFail, isContractERC4626 } from "./entity/ERC4626Entity";
-import { updateAccountForDeposit } from "./Accounting";
+import {
+  updateAccountForDeposit,
+  updateAccountForWithdraw,
+} from "./Accounting";
 import {
   buildEventId,
   convertTokenToDecimal,
@@ -30,6 +34,8 @@ import {
 import { ERC4626 as ERC4626RPC } from "../generated/ERC4626Vault/ERC4626";
 import { createCostBasisEntity } from "./entity/CostBasisEntity";
 import { createDepositEntity, createTransferEntity } from "./entity/MiscEntity";
+import { getERC20orFail } from "./entity/ERC20Entity";
+import { createEarningsEntity } from "./entity/EarningsEntity";
 
 export function handleDepositEvent(event: Deposit): void {
   if (!isContractERC4626(event.address)) {
@@ -70,9 +76,20 @@ export function handleTransferEvent(event: Transfer): void {
   let tokensEquivalent = vaultRPC.convertToAssets(event.params.value);
 
   let vault = getERC4626orFail(event.address);
+  let sender = getOrCreateAccount(event.params.from);
 
-  //todo: handle withdraw logic
+  // process the sent amount as a withdrawal
+  let earnings = createEarningsEntity(
+    vault,
+    sender,
+    event.params.value,
+    tokensEquivalent,
+    event
+  );
 
+  updateAccountForWithdraw(vault, sender, earnings);
+
+  // process the received amount as a deposit
   let costBasis = createCostBasisEntity(
     vault,
     tokensEquivalent,
@@ -80,8 +97,11 @@ export function handleTransferEvent(event: Transfer): void {
     event
   );
 
-  let sender = getOrCreateAccount(event.params.from);
   let receiver = getOrCreateAccount(event.params.to);
   updateAccountForDeposit(vault, receiver, costBasis);
-  createTransferEntity(vault, sender, receiver, costBasis, event);
+
+  // create the entity
+  createTransferEntity(vault, sender, receiver, costBasis, earnings, event);
+
+  // updateVaultMetrics(...)
 }

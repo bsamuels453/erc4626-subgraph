@@ -13,6 +13,7 @@ import {
   ERC4626Vault as ERC4626Entity,
   DepositEvent,
   TransferEvent,
+  Earnings,
 } from "../../generated/schema";
 import { getOrCreateAccountPosition } from "./AccountEntity";
 import { getERC20orFail } from "./ERC20Entity";
@@ -40,12 +41,14 @@ export function createTransferEntity(
   sender: Account,
   receiver: Account,
   costBasis: CostBasisLot,
+  earnings: Earnings,
   event: ethereum.Event
 ): void {
   let transferEvent = new TransferEvent(buildEventId(event));
 
   transferEvent.vault = vault.id;
   transferEvent.sender = sender.id;
+  transferEvent.senderEarnings = earnings.id;
   transferEvent.receiver = receiver.id;
   transferEvent.receiverLot = costBasis.id;
   transferEvent.sharesTransferred = costBasis.sharesInLot;

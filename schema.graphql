@@ -65,9 +65,11 @@ type TransferEvent @entity @immutable {
 
   sharesTransferred: BigDecimal!
 
-  #senderEarnings: Something???
   "The lot created by this transfer"
   receiverLot: CostBasisLot!
+
+  "The sender's earnings"
+  senderEarnings: Earnings!
 }
 
 type WithdrawEvent @entity @immutable {
@@ -84,7 +86,7 @@ type WithdrawEvent @entity @immutable {
   "The amount of shares burned. Normalized for the vault's decimals."
   sharesBurned: BigDecimal!
 
-  #earnings: Something??
+  earnings: Earnings!
 }
 
 
@@ -103,7 +105,22 @@ type CostBasisLot @entity {
   pricePerShare: BigDecimal!
   tokensInLot: BigDecimal!
   sharesInLot: BigDecimal!
-  sharesConsumed: BigDecimal!
+  unconsumedShares: BigDecimal!
+}
+
+
+type Earnings @entity {
+  "Concatenation of txHash+logIdx"
+  id: Bytes!
+  vault: ERC4626Vault!
+  account: Account!
+
+  sharesRedeemed: BigDecimal!
+  tokensReceived: BigDecimal!
+  profit: BigDecimal!
+
+  sourceLots: [CostBasisLot!]!
+  sourcedQuantities: [BigDecimal!]!
 }
 
 type AccountPosition @entity {
@@ -112,6 +129,7 @@ type AccountPosition @entity {
   account: Account!
   vault: ERC4626Vault!
   shares: BigDecimal!
+  earnings: [Earnings!]!
   unconsumedLots: [CostBasisLot!]!
 }
 

@@ -20,7 +20,7 @@ export function createCostBasisEntity(
   let costBasis = new CostBasisLot(buildEventId(event));
   costBasis.sharesInLot = sharesMintedNorm;
   costBasis.tokensInLot = tokensDepositedNorm;
-  costBasis.sharesConsumed = BigDecimal.zero();
+  costBasis.unconsumedShares = sharesMintedNorm;
   costBasis.pricePerShare = tokensDepositedNorm.div(sharesMintedNorm);
   costBasis.save();
   return costBasis;
