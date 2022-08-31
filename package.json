@@ -2,16 +2,17 @@
   "name": "erc-4626-subgraph",
   "version": "1.0.0",
   "description": "",
-  "license": "GPLV3",
+  "homepage": "https://github.com/bsamuels453/erc4626-subgraph",
+  "license": "GPL-3.0",
   "author": "Benjamin Samuels",
   "main": "index.js",
   "scripts": {
     "build": "graph codegen && graph build",
     "clean": "rm -rf ./build && rm -rf ./generated",
     "deploy:hosted": "yarn build && graph deploy --product hosted-service bsamuels453/erc4626",
+    "postinstall": "husky install",
     "lint:check": "prettier --check './**'",
-    "lint:fix": "sort-package-json && prettier --write ./**",
-    "postinstall": "husky install"
+    "lint:fix": "sort-package-json && prettier --write ./**"
   },
   "dependencies": {
     "@graphprotocol/graph-ts": "^0.27.0",
