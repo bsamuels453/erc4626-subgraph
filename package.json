@@ -10,7 +10,8 @@
     "clean": "rm -rf ./build && rm -rf ./generated",
     "deploy:hosted": "yarn build && graph deploy --product hosted-service bsamuels453/erc4626",
     "lint:check": "prettier --check './**'",
-    "lint:fix": "sort-package-json && prettier --write ./**"
+    "lint:fix": "sort-package-json && prettier --write ./**",
+    "postinstall": "husky install"
   },
   "dependencies": {
     "@graphprotocol/graph-ts": "^0.27.0",
