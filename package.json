@@ -1,16 +1,21 @@
 {
-  "name": "erc-4626",
+  "name": "erc-4626-subgraph",
   "version": "1.0.0",
   "description": "",
+  "license": "GPLV3",
+  "author": "Benjamin Samuels",
   "main": "index.js",
   "scripts": {
     "build": "graph codegen && graph build",
+    "clean": "rm -rf ./build && rm -rf ./generated",
     "deploy:hosted": "yarn build && graph deploy --product hosted-service bsamuels453/erc4626",
-    "clean": "rm -rf ./build && rm -rf ./generated"
+    "lint:check": "prettier --check './**'",
+    "lint:fix": "sort-package-json && prettier --write ./**"
   },
-  "author": "",
-  "license": "ISC",
   "dependencies": {
-    "@graphprotocol/graph-ts": "^0.27.0"
+    "@graphprotocol/graph-ts": "^0.27.0",
+    "husky": "^8.0.1",
+    "prettier": "^2.7.1",
+    "sort-package-json": "^1.57.0"
   }
 }
