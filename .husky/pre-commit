@@ -1,0 +1,10 @@
+#!/bin/sh
+. "$(dirname "$0")/_/husky.sh"
+
+set +e
+yarn lint:check
+
+# just trying to make sure codegen can run successfully
+graph codegen
+
+exit 0
