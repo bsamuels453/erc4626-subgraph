@@ -1,0 +1,119 @@
+##### SCHEMA GUIDELINES
+#
+
+
+type ERC20Token @entity {
+  "Token address"
+  id: Bytes!
+  "Number of decimals for this Token"
+  decimals: Int!
+  "Name of the Token"
+  name: String!
+  "Symbol of the Token"
+  symbol: String!
+}
+
+type ERC4626Vault @entity {
+  "Vault address"
+  id: Bytes!
+  "Assumed to never change. Maybe reference ERC20Token instead?"
+  underlying: ERC20Token!
+  "Name of the vault"
+  name: String!
+  "Symbol of the vault"
+  symbol: String!
+  "Number of decimals for the vault's share token"
+  decimals: Int!
+  # totalAssets: BigInt!
+  # totalAssetsValueUSDC
+  # HasAccountingErrors
+}
+
+
+" Used to keep track of contracts emitting 4626-matching events, but are not 4626 compliant."
+type NonERC4626Contract @entity @immutable {
+  "Contract address"
+  id: Bytes!
+}
+
+type DepositEvent @entity @immutable {
+  "Concatenation of txHash+logIdx"
+  id: Bytes!
+  "The vault deposited to"
+  vault: ERC4626Vault!
+  "The beneficiary of the deposit"
+  account: Account!
+  "The address that initiated the deposit event (msg.sender)"
+  sender: Bytes!
+  "The amount of assets deposited. Normalized for the asset's decimals."
+  assetsDeposited: BigDecimal!
+  "The amount of shares minted. Normalized for the vault's decimals."
+  sharesMinted: BigDecimal!
+  "The lot created by this deposit"
+  lot: CostBasisLot!
+}
+
+type TransferEvent @entity @immutable {
+  "Concatenation of txHash+logIdx"
+  id: Bytes!
+  "The vault whose share token is being transferred"
+  vault: ERC4626Vault!
+  "The account sending the share token"
+  sender: Account!
+  "The account receiving the share token"
+  receiver: Account!
+
+  #senderEarnings: Something???
+  "The lot created by this transfer"
+  receiverLot: CostBasisLot!
+}
+
+type WithdrawEvent @entity @immutable {
+  "Concatenation of txHash+logIdx"
+  id: Bytes!
+  "The vault withdrawn from"
+  vault: ERC4626Vault!
+  "The account being withdrawn from"
+  account: Account!
+  "The address that initiated the deposit event (msg.sender)"
+  sender: Bytes!
+  "The amount of assets withdrawn. Normalized for the asset's decimals."
+  assetsWithdrawn: BigDecimal!
+  "The amount of shares burned. Normalized for the vault's decimals."
+  sharesBurned: BigDecimal!
+
+  #earnings: Something??
+}
+
+
+"""
+Keeps track of the cost basis of an account's vault position. 
+This data is used to calculate the profit realized when an account performs a withdraw.
+"""
+type CostBasisLot @entity {
+  "Concatenation of txHash+logIdx"
+  id: Bytes!
+
+  """
+  The amount of underlying tokens required to purchase 1 normalized share token.
+  This value is normalized with respect to the vault's asset token decimals.
+  """
+  pricePerShare: BigDecimal!
+
+  sharesInLot: BigDecimal!
+  sharesConsumed: BigDecimal!
+}
+
+type AccountPosition @entity {
+  "Concatenation of accountAddress+vaultAddress"
+  id: Bytes!
+  account: Account!
+  vault: ERC4626Vault!
+  shares: BigDecimal!
+  unconsumedLots: [CostBasisLot!]!
+}
+
+type Account @entity {
+  id: Bytes!
+  positions: [AccountPosition!]! @derivedFrom(field: "account")
+}

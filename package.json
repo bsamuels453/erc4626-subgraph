@@ -1,0 +1,16 @@
+{
+  "name": "erc-4626",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "build": "graph codegen && graph build",
+    "deploy:hosted": "yarn build && graph deploy --product hosted-service bsamuels453/erc4626",
+    "clean": "rm -rf ./build && rm -rf ./generated"
+  },
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "@graphprotocol/graph-ts": "^0.27.0"
+  }
+}

@@ -1,0 +1,60 @@
+specVersion: 0.0.4
+schema:
+  file: ./schema.graphql
+dataSources:
+  - kind: ethereum/contract
+    name: ERC4626Vault
+    network: mainnet
+    source:
+      startBlock: 14000000
+      abi: ERC4626
+    mapping:
+      kind: ethereum/events
+      apiVersion: 0.0.6
+      language: wasm/assemblyscript
+      entities:
+        - ERC4626Vault
+      abis:
+        - name: ERC20
+          file: ./abis/ERC20.json
+        - name: DSToken
+          file: ./abis/DSToken.json
+        - name: ERC4626
+          file: ./abis/ERC4626.json
+        - name: UniswapV2Router
+          file: ./abis/UniswapV2Router.json
+        - name: UniswapV3Router
+          file: ./abis/UniswapV3Router.json
+      eventHandlers:
+        - event: Deposit(indexed address,indexed address,uint256,uint256)
+          handler: handleDepositEvent
+      file: ./src/erc4626Mappings.ts
+
+# We keep the Transfer/Withdraw event handlers separate in this template.
+# When a 4626 vault is detected, the template can be instantiated with the vault's address to start the listener.
+# If we don't do this, the subgraph will trigger on every single ERC20 transfer event on the network, which is bad.
+# We can keep the withdraw handler in this template because we assume the first time we ever see a valid 4626 vault, it will
+# be during the vault's initial deposit. 
+templates:
+  - name: ERC4626Template
+    kind: ethereum/contract
+    network: mainnet
+    source:
+      abi: ERC4626
+    mapping:
+      kind: ethereum/events
+      abis:
+        - name: ERC20
+          file: ./abis/ERC20.json
+        - name: ERC4626
+          file: ./abis/ERC4626.json
+      entities:
+        - ERC4626Vault
+      apiVersion: 0.0.6
+      language: wasm/assemblyscript
+      eventHandlers:
+        - event: Transfer(indexed address,indexed address,uint256)
+          handler: handleTransferEvent
+        - event: Withdraw(indexed address,indexed address,indexed address,uint256,uint256)
+          handler: handleWithdrawEvent
+      file: ./src/erc4626Mappings.ts
