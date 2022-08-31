@@ -28,7 +28,7 @@ dataSources:
       eventHandlers:
         - event: Deposit(indexed address,indexed address,uint256,uint256)
           handler: handleDepositEvent
-      file: ./src/erc4626Mappings.ts
+      file: ./src/ERC4626Mappings.ts
 
 # We keep the Transfer/Withdraw event handlers separate in this template.
 # When a 4626 vault is detected, the template can be instantiated with the vault's address to start the listener.
@@ -57,4 +57,4 @@ templates:
           handler: handleTransferEvent
         - event: Withdraw(indexed address,indexed address,indexed address,uint256,uint256)
           handler: handleWithdrawEvent
-      file: ./src/erc4626Mappings.ts
+      file: ./src/ERC4626Mappings.ts

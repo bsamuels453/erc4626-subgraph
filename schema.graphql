@@ -63,6 +63,8 @@ type TransferEvent @entity @immutable {
   "The account receiving the share token"
   receiver: Account!
 
+  sharesTransferred: BigDecimal!
+
   #senderEarnings: Something???
   "The lot created by this transfer"
   receiverLot: CostBasisLot!
@@ -99,7 +101,7 @@ type CostBasisLot @entity {
   This value is normalized with respect to the vault's asset token decimals.
   """
   pricePerShare: BigDecimal!
-
+  tokensInLot: BigDecimal!
   sharesInLot: BigDecimal!
   sharesConsumed: BigDecimal!
 }
