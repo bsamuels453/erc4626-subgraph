@@ -7,12 +7,7 @@
   "author": "Benjamin Samuels",
   "main": "index.js",
   "scripts": {
-    "build": "graph codegen && graph build",
-    "clean": "rm -rf ./build && rm -rf ./generated",
-    "deploy:hosted": "yarn build && graph deploy --product hosted-service bsamuels453/erc4626",
-    "postinstall": "husky install",
-    "lint:check": "prettier --check './**'",
-    "lint:fix": "sort-package-json && prettier --write ./**"
+    "postinstall": "husky install"
   },
   "dependencies": {
     "@graphprotocol/graph-ts": "^0.27.0",
