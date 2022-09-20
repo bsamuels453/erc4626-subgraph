@@ -1,4 +1,4 @@
-import { ethereum, BigInt, BigDecimal } from "@graphprotocol/graph-ts";
+import { ethereum, BigInt } from "@graphprotocol/graph-ts";
 import { CostBasisLot, ERC4626Vault } from "../../generated/schema";
 import { buildEventId, convertTokenToDecimal } from "../Util";
 import { getERC20orFail } from "./ERC20Entity";
@@ -18,6 +18,7 @@ export function createCostBasisEntity(
   );
 
   let costBasis = new CostBasisLot(buildEventId(event));
+  costBasis.block = event.block.number;
   costBasis.sharesInLot = sharesMintedNorm;
   costBasis.tokensInLot = tokensDepositedNorm;
   costBasis.unconsumedShares = sharesMintedNorm;

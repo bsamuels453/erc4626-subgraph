@@ -1,12 +1,17 @@
 specVersion: 0.0.4
 schema:
   file: ./schema.graphql
+#graft:
+#  base: QmPYS7pSoWHDmPh9nza3kzZ9KfswmfQE65Emm5CwjSoEK6
+#  block: 14800000
+#features:
+#  - grafting
 dataSources:
   - kind: ethereum/contract
     name: ERC4626Vault
     network: mainnet
     source:
-      startBlock: 14000000
+      startBlock: 14427000
       abi: ERC4626
     mapping:
       kind: ethereum/events

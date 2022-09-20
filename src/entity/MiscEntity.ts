@@ -1,23 +1,15 @@
-import {
-  Address,
-  BigDecimal,
-  ethereum,
-  log,
-  BigInt,
-} from "@graphprotocol/graph-ts";
+import { Address, BigDecimal, ethereum } from "@graphprotocol/graph-ts";
 import {
   Account,
   CostBasisLot,
   ERC4626Vault,
-  ERC20Token as ERC20Entity,
-  ERC4626Vault as ERC4626Entity,
   DepositEvent,
   TransferEvent,
   Earnings,
+  WithdrawEvent,
+  LotConsumingAction,
 } from "../../generated/schema";
-import { getOrCreateAccountPosition } from "./AccountEntity";
-import { getERC20orFail } from "./ERC20Entity";
-import { buildEventId, convertTokenToDecimal } from "../Util";
+import { buildEventId } from "../Util";
 
 export function createDepositEntity(
   vault: ERC4626Vault,
@@ -33,7 +25,25 @@ export function createDepositEntity(
   depositEvent.assetsDeposited = costBasis.tokensInLot;
   depositEvent.sharesMinted = costBasis.sharesInLot;
   depositEvent.lot = costBasis.id;
+  depositEvent.block = event.block.number;
   depositEvent.save();
+}
+
+export function createWithdrawEntity(
+  vault: ERC4626Vault,
+  account: Account,
+  sender: Address,
+  earnings: Earnings,
+  event: ethereum.Event
+): void {
+  let withdrawEvent = new WithdrawEvent(buildEventId(event));
+
+  withdrawEvent.vault = vault.id;
+  withdrawEvent.account = account.id;
+  withdrawEvent.sender = sender;
+  withdrawEvent.assetsWithdrawn = earnings.assetsWithdrawn;
+  withdrawEvent.sharesRedeemed = earnings.sharesRedeemed;
+  withdrawEvent.block = event.block.number;
 }
 
 export function createTransferEntity(
@@ -52,5 +62,21 @@ export function createTransferEntity(
   transferEvent.receiver = receiver.id;
   transferEvent.receiverLot = costBasis.id;
   transferEvent.sharesTransferred = costBasis.sharesInLot;
+  transferEvent.block = event.block.number;
   transferEvent.save();
+}
+
+export function createLotConsumingAction(
+  sharesConsumed: BigDecimal,
+  lot: CostBasisLot,
+  event: ethereum.Event
+): LotConsumingAction {
+  let eventId = buildEventId(event);
+  let id = eventId.concat(lot.id);
+
+  let lotConsumed = new LotConsumingAction(id);
+  lotConsumed.sharesConsumed = sharesConsumed;
+  lotConsumed.lot = lot.id;
+  lotConsumed.save();
+  return lotConsumed;
 }

@@ -1,23 +1,11 @@
-import {
-  Address,
-  BigDecimal,
-  ethereum,
-  log,
-  BigInt,
-} from "@graphprotocol/graph-ts";
+import { BigDecimal, ethereum, log } from "@graphprotocol/graph-ts";
 import {
   Account,
   CostBasisLot,
   ERC4626Vault,
-  ERC20Token as ERC20Entity,
-  ERC4626Vault as ERC4626Entity,
-  DepositEvent,
-  TransferEvent,
   Earnings,
 } from "../generated/schema";
 import { getOrCreateAccountPosition } from "./entity/AccountEntity";
-import { getERC20orFail } from "./entity/ERC20Entity";
-import { buildEventId, convertTokenToDecimal } from "./Util";
 
 export function updateAccountForDeposit(
   vault: ERC4626Vault,
@@ -38,7 +26,8 @@ export function updateAccountForDeposit(
 export function updateAccountForWithdraw(
   vault: ERC4626Vault,
   owner: Account,
-  earnings: Earnings
+  earnings: Earnings,
+  event: ethereum.Event
 ): void {
   let accountPosition = getOrCreateAccountPosition(vault, owner);
 
@@ -57,6 +46,23 @@ export function updateAccountForWithdraw(
   let historicalEarnings = accountPosition.earnings;
   historicalEarnings.push(earnings.id);
 
+  if (
+    accountPosition.shares.minus(earnings.sharesRedeemed).lt(BigDecimal.zero())
+  ) {
+    log.info(
+      "Transaction would send user's shares below zero; TX: {}  Previous account position: {}  Amount of shares redeemed: {} Owner: {} ",
+      [
+        event.transaction.hash.toHexString(),
+        accountPosition.shares.toString(),
+        earnings.sharesRedeemed.toString(),
+        owner.id.toHexString(),
+      ]
+    );
+  }
+
+  accountPosition.shares = accountPosition.shares.minus(
+    earnings.sharesRedeemed
+  );
   accountPosition.earnings = historicalEarnings;
   accountPosition.unconsumedLots = unconsumedLots;
   accountPosition.save();

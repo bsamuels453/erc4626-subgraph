@@ -11,26 +11,40 @@ import {
   CostBasisLot,
   Earnings,
   ERC4626Vault,
+  LotConsumingAction,
 } from "../../generated/schema";
 import { buildEventId, convertTokenToDecimal } from "../Util";
 import { getOrCreateAccountPosition } from "./AccountEntity";
 import { getERC20orFail } from "./ERC20Entity";
-
-class ChangedLots {
-  lots = new Array<Bytes>();
-  sharesConsumed = new Array<BigDecimal>();
-}
+import { createLotConsumingAction } from "./MiscEntity";
 
 function calculateLotConsumptionLIFO(
   accountPosition: AccountPosition,
   sharesToRedeem: BigDecimal,
   event: ethereum.Event
-): ChangedLots {
-  let changedLots = new ChangedLots();
+): LotConsumingAction[] {
+  let changedLots = new Array<LotConsumingAction>();
   let sharesRemaining = sharesToRedeem;
+
+  let blockGuard = BigInt.fromI64(9_223_372_036_854_775_807);
 
   for (let i = accountPosition.unconsumedLots.length - 1; i >= 0; i--) {
     let lot = CostBasisLot.load(accountPosition.unconsumedLots[i])!;
+    // make sure the lot ordering has not been tampered with
+    if (lot.block.gt(blockGuard)) {
+      log.critical(
+        "Error, lot {} was found to have a higher block number {} than guard {}. tx id: {}",
+        [
+          lot.id.toHexString(),
+          lot.block.toString(),
+          blockGuard.toString(),
+          event.transaction.hash.toHexString(),
+        ]
+      );
+    } else {
+      blockGuard = lot.block;
+    }
+
     let sharesToConsume: BigDecimal;
 
     if (sharesRemaining.lt(lot.unconsumedShares)) {
@@ -43,20 +57,22 @@ function calculateLotConsumptionLIFO(
 
     lot.unconsumedShares = lot.unconsumedShares.minus(sharesToConsume);
     lot.save();
-    changedLots.lots.push(lot.id);
-    changedLots.sharesConsumed.push(sharesToConsume);
+
+    let consumedLot = createLotConsumingAction(sharesToConsume, lot, event);
+    changedLots.push(consumedLot);
 
     if (sharesRemaining.equals(BigDecimal.zero())) {
       break;
     }
     if (i == 0) {
       // we've got a problem, this account has shares we don't have a cost basis for
-      log.critical(
-        "Cannot account for the source of a user's shares during earnings calculations. Account: {} Vault: {} Tx: {}",
+      log.error(
+        "Cannot account for the source of a user's shares during earnings calculations. Account: {} Vault: {} Tx: {} Shares unaccounted for: {}",
         [
           accountPosition.account.toHexString(),
           event.address.toHexString(),
           event.transaction.hash.toHexString(),
+          sharesRemaining.toString(),
         ]
       );
     }
@@ -65,16 +81,16 @@ function calculateLotConsumptionLIFO(
 }
 
 function calculateProfit(
-  changedLots: ChangedLots,
+  changedLots: LotConsumingAction[],
   totalSharesRedeemed: BigDecimal,
   totalTokensWithdrawn: BigDecimal
 ): BigDecimal {
   let costBasisAvg = BigDecimal.zero();
-  for (let i = 0; i < changedLots.lots.length; i++) {
-    let lot = CostBasisLot.load(changedLots.lots[i])!;
+  for (let i = 0; i < changedLots.length; i++) {
+    let lot = CostBasisLot.load(changedLots[i].lot)!;
 
     // weighted average
-    let influenceFrac = changedLots.sharesConsumed[i].div(totalSharesRedeemed);
+    let influenceFrac = changedLots[i].sharesConsumed.div(totalSharesRedeemed);
     let contribution = influenceFrac.times(lot.tokensInLot);
     costBasisAvg = costBasisAvg.plus(contribution);
   }
@@ -103,6 +119,7 @@ export function createEarningsEntity(
   );
 
   // figure out profit + tainted lots
+
   let changedLots = calculateLotConsumptionLIFO(
     accountPosition,
     sharesRedeemedNorm,
@@ -115,16 +132,25 @@ export function createEarningsEntity(
     tokensWithdrawnNorm
   );
 
+  // extract lot ids
+  let changedLotIds = new Array<Bytes>();
+  for (let i = 0; i < changedLots.length; i++) {
+    changedLotIds.push(changedLots[i].id);
+  }
+
   // create earnings entity
   let earnings = new Earnings(buildEventId(event));
   earnings.vault = vault.id;
   earnings.account = account.id;
-  earnings.sourceLots = changedLots.lots;
-  earnings.sourcedQuantities = changedLots.sharesConsumed;
+  earnings.block = event.block.number;
+  earnings.sourceLots = changedLotIds;
+  //earnings.sourceLots = [];
+  //earnings.sourcedQuantities = [];
 
   earnings.sharesRedeemed = sharesRedeemedNorm;
-  earnings.tokensReceived = tokensWithdrawnNorm;
+  earnings.assetsWithdrawn = tokensWithdrawnNorm;
   earnings.profit = profit;
+  //earnings.profit = BigDecimal.zero();
   earnings.save();
   return earnings;
 }

@@ -1,6 +1,3 @@
-##### SCHEMA GUIDELINES
-#
-
 
 type ERC20Token @entity {
   "Token address"
@@ -29,11 +26,76 @@ type ERC4626Vault @entity {
   # HasAccountingErrors
 }
 
-
 " Used to keep track of contracts emitting 4626-matching events, but are not 4626 compliant."
 type NonERC4626Contract @entity @immutable {
   "Contract address"
   id: Bytes!
+}
+
+type Account @entity {
+  "EOA or contract address of the account"
+  id: Bytes!
+  "Current and historical vault positions this account has"
+  positions: [AccountPosition!]! @derivedFrom(field: "account")
+}
+
+type AccountPosition @entity {
+  "Concatenation of accountAddress+vaultAddress"
+  id: Bytes!
+  account: Account!
+  "The vault this position is for"
+  vault: ERC4626Vault!
+  "The number of vault shares the account currently has."
+  shares: BigDecimal!
+  earnings: [Earnings!]!
+  unconsumedLots: [CostBasisLot!]!
+}
+
+"""
+Keeps track of the cost basis of an account's vault position. 
+This data is used to calculate the profit realized when an account performs a withdraw.
+"""
+type CostBasisLot @entity {
+  "Concatenation of txHash+logIdx"
+  id: Bytes!
+
+  block: BigInt!
+
+  """
+  The amount of underlying tokens required to purchase 1 normalized share token.
+  This value is normalized with respect to the vault's asset token decimals.
+  """
+  pricePerShare: BigDecimal!
+  tokensInLot: BigDecimal!
+  sharesInLot: BigDecimal!
+  unconsumedShares: BigDecimal!
+}
+
+
+type LotConsumingAction @entity @immutable {
+  "Concatenation of txHash+logIdx+lotId"
+  id: Bytes!
+  lot: CostBasisLot!
+  sharesConsumed: BigDecimal!
+}
+
+"""
+Keeps track of the amount of earnings from vault withdrawls.
+Earnings are calculated using LIFO.
+"""
+type Earnings @entity {
+  "Concatenation of txHash+logIdx"
+  id: Bytes!
+  vault: ERC4626Vault!
+  account: Account!
+
+  block: BigInt!
+
+  sharesRedeemed: BigDecimal!
+  assetsWithdrawn: BigDecimal!
+  profit: BigDecimal!
+
+  sourceLots: [LotConsumingAction!]!
 }
 
 type DepositEvent @entity @immutable {
@@ -51,6 +113,8 @@ type DepositEvent @entity @immutable {
   sharesMinted: BigDecimal!
   "The lot created by this deposit"
   lot: CostBasisLot!
+
+  block: BigInt!
 }
 
 type TransferEvent @entity @immutable {
@@ -70,6 +134,8 @@ type TransferEvent @entity @immutable {
 
   "The sender's earnings"
   senderEarnings: Earnings!
+
+  block: BigInt!
 }
 
 type WithdrawEvent @entity @immutable {
@@ -83,57 +149,10 @@ type WithdrawEvent @entity @immutable {
   sender: Bytes!
   "The amount of assets withdrawn. Normalized for the asset's decimals."
   assetsWithdrawn: BigDecimal!
-  "The amount of shares burned. Normalized for the vault's decimals."
-  sharesBurned: BigDecimal!
+  "The amount of shares redeemed. Normalized for the vault's decimals."
+  sharesRedeemed: BigDecimal!
 
   earnings: Earnings!
-}
 
-
-"""
-Keeps track of the cost basis of an account's vault position. 
-This data is used to calculate the profit realized when an account performs a withdraw.
-"""
-type CostBasisLot @entity {
-  "Concatenation of txHash+logIdx"
-  id: Bytes!
-
-  """
-  The amount of underlying tokens required to purchase 1 normalized share token.
-  This value is normalized with respect to the vault's asset token decimals.
-  """
-  pricePerShare: BigDecimal!
-  tokensInLot: BigDecimal!
-  sharesInLot: BigDecimal!
-  unconsumedShares: BigDecimal!
-}
-
-
-type Earnings @entity {
-  "Concatenation of txHash+logIdx"
-  id: Bytes!
-  vault: ERC4626Vault!
-  account: Account!
-
-  sharesRedeemed: BigDecimal!
-  tokensReceived: BigDecimal!
-  profit: BigDecimal!
-
-  sourceLots: [CostBasisLot!]!
-  sourcedQuantities: [BigDecimal!]!
-}
-
-type AccountPosition @entity {
-  "Concatenation of accountAddress+vaultAddress"
-  id: Bytes!
-  account: Account!
-  vault: ERC4626Vault!
-  shares: BigDecimal!
-  earnings: [Earnings!]!
-  unconsumedLots: [CostBasisLot!]!
-}
-
-type Account @entity {
-  id: Bytes!
-  positions: [AccountPosition!]! @derivedFrom(field: "account")
+  block: BigInt!
 }

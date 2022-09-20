@@ -1,4 +1,4 @@
-import { log, ethereum, BigInt, Address, Bytes } from "@graphprotocol/graph-ts";
+import { log, BigInt, Address, Bytes } from "@graphprotocol/graph-ts";
 
 import {
   ERC20Token,

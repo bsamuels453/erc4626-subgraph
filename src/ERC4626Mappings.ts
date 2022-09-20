@@ -1,40 +1,22 @@
-import {
-  Bytes,
-  log,
-  ethereum,
-  BigDecimal,
-  BigInt,
-} from "@graphprotocol/graph-ts";
 import { Deposit, Withdraw, Transfer } from "../generated/ERC4626Vault/ERC4626";
-import {
-  CostBasisLot,
-  DepositEvent,
-  Earnings,
-  ERC20Token as ERC20Entity,
-  ERC4626Vault as ERC4626Entity,
-  ERC4626Vault,
-  NonERC4626Contract as NonERC4626Entity,
-  WithdrawEvent,
-} from "../generated/schema";
-import {
-  getOrCreateAccount,
-  getOrCreateAccountPosition,
-} from "./entity/AccountEntity";
+import { getOrCreateAccount } from "./entity/AccountEntity";
 import { getERC4626orFail, isContractERC4626 } from "./entity/ERC4626Entity";
 import {
   updateAccountForDeposit,
   updateAccountForWithdraw,
 } from "./Accounting";
 import {
-  buildEventId,
-  convertTokenToDecimal,
   isDepositEventAnomalous,
   isTransferEventAnomalous,
+  isWithdrawEventAnomalous,
 } from "./Util";
 import { ERC4626 as ERC4626RPC } from "../generated/ERC4626Vault/ERC4626";
 import { createCostBasisEntity } from "./entity/CostBasisEntity";
-import { createDepositEntity, createTransferEntity } from "./entity/MiscEntity";
-import { getERC20orFail } from "./entity/ERC20Entity";
+import {
+  createDepositEntity,
+  createTransferEntity,
+  createWithdrawEntity,
+} from "./entity/MiscEntity";
 import { createEarningsEntity } from "./entity/EarningsEntity";
 
 export function handleDepositEvent(event: Deposit): void {
@@ -63,11 +45,31 @@ export function handleDepositEvent(event: Deposit): void {
 }
 
 export function handleWithdrawEvent(event: Withdraw): void {
-  // datasource is garaunteed to be a valid vault, don't bother checking
+  // datasource is guaranteed to be a valid vault, don't bother checking
+  if (isWithdrawEventAnomalous(event)) {
+    return;
+  }
+
+  let vault = getERC4626orFail(event.address);
+  let owner = getOrCreateAccount(event.params.owner);
+
+  let earnings = createEarningsEntity(
+    vault,
+    owner,
+    event.params.shares,
+    event.params.assets,
+    event
+  );
+
+  updateAccountForWithdraw(vault, owner, earnings, event);
+
+  createWithdrawEntity(vault, owner, event.params.sender, earnings, event);
+
+  // updateVaultMetrics(...)
 }
 
 export function handleTransferEvent(event: Transfer): void {
-  // datasource is garaunteed to be a valid vault, don't bother checking
+  // datasource is guaranteed to be a valid vault, don't bother checking
   if (isTransferEventAnomalous(event)) {
     return;
   }
@@ -87,7 +89,7 @@ export function handleTransferEvent(event: Transfer): void {
     event
   );
 
-  updateAccountForWithdraw(vault, sender, earnings);
+  updateAccountForWithdraw(vault, sender, earnings, event);
 
   // process the received amount as a deposit
   let costBasis = createCostBasisEntity(
