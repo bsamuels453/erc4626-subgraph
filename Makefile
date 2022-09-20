@@ -5,7 +5,9 @@ SUBGRAPH_SLUG="bsamuels453/erc4626"
 
 .PHONY: build
 
-install:; yarn install
+install:
+	yarn install
+	cp .env.example .env
 
 clean :
 	rm -rf ./build
