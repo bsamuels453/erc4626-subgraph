@@ -18,6 +18,58 @@ import { getOrCreateAccountPosition } from "./AccountEntity";
 import { getERC20orFail } from "./ERC20Entity";
 import { createLotConsumingAction } from "./MiscEntity";
 
+export function createEarningsEntity(
+  vault: ERC4626Vault,
+  account: Account,
+  sharesRedeemed: BigInt,
+  tokensWithdrawn: BigInt,
+  event: ethereum.Event
+): Earnings {
+  // setup
+  let accountPosition = getOrCreateAccountPosition(vault, account);
+  let sharesRedeemedNorm = convertTokenToDecimal(
+    sharesRedeemed,
+    vault.decimals
+  );
+
+  let underlying = getERC20orFail(vault.underlying);
+  let tokensWithdrawnNorm = convertTokenToDecimal(
+    tokensWithdrawn,
+    underlying.decimals
+  );
+
+  // figure out profit + tainted lots
+  let changedLots = calculateLotConsumptionLIFO(
+    accountPosition,
+    sharesRedeemedNorm,
+    event
+  );
+
+  let profit = calculateProfit(
+    changedLots,
+    sharesRedeemedNorm,
+    tokensWithdrawnNorm
+  );
+
+  // extract lot ids
+  let changedLotIds = new Array<Bytes>();
+  for (let i = 0; i < changedLots.length; i++) {
+    changedLotIds.push(changedLots[i].id);
+  }
+
+  // create earnings entity
+  let earnings = new Earnings(buildEventId(event));
+  earnings.vault = vault.id;
+  earnings.account = account.id;
+  earnings.block = event.block.number;
+  earnings.sourceLots = changedLotIds;
+  earnings.sharesRedeemed = sharesRedeemedNorm;
+  earnings.assetsWithdrawn = tokensWithdrawnNorm;
+  earnings.profit = profit;
+  earnings.save();
+  return earnings;
+}
+
 function calculateLotConsumptionLIFO(
   accountPosition: AccountPosition,
   sharesToRedeem: BigDecimal,
@@ -30,7 +82,8 @@ function calculateLotConsumptionLIFO(
 
   for (let i = accountPosition.unconsumedLots.length - 1; i >= 0; i--) {
     let lot = CostBasisLot.load(accountPosition.unconsumedLots[i])!;
-    // make sure the lot ordering has not been tampered with
+    // Make sure the lot ordering has not been tampered with.
+    // I was suspicious that array ordering was not preserved; this can be removed once that suspicion is cleared up.
     if (lot.block.gt(blockGuard)) {
       log.critical(
         "Error, lot {} was found to have a higher block number {} than guard {}. tx id: {}",
@@ -67,7 +120,9 @@ function calculateLotConsumptionLIFO(
     if (i == 0) {
       // we've got a problem, this account has shares we don't have a cost basis for
       log.error(
-        "Cannot account for the source of a user's shares during earnings calculations. Account: {} Vault: {} Tx: {} Shares unaccounted for: {}",
+        "Cannot account for the source of a user's shares during earnings calculations. \
+        This often happens if the account received the shares through an airdrop or other non-4626 mechanism. \
+        Account: {} Vault: {} Tx: {} Shares unaccounted for: {}",
         [
           accountPosition.account.toHexString(),
           event.address.toHexString(),
@@ -96,61 +151,4 @@ function calculateProfit(
   }
 
   return totalTokensWithdrawn.minus(costBasisAvg);
-}
-
-export function createEarningsEntity(
-  vault: ERC4626Vault,
-  account: Account,
-  sharesRedeemed: BigInt,
-  tokensWithdrawn: BigInt,
-  event: ethereum.Event
-): Earnings {
-  // setup
-  let accountPosition = getOrCreateAccountPosition(vault, account);
-  let sharesRedeemedNorm = convertTokenToDecimal(
-    sharesRedeemed,
-    vault.decimals
-  );
-
-  let underlying = getERC20orFail(vault.underlying);
-  let tokensWithdrawnNorm = convertTokenToDecimal(
-    tokensWithdrawn,
-    underlying.decimals
-  );
-
-  // figure out profit + tainted lots
-
-  let changedLots = calculateLotConsumptionLIFO(
-    accountPosition,
-    sharesRedeemedNorm,
-    event
-  );
-
-  let profit = calculateProfit(
-    changedLots,
-    sharesRedeemedNorm,
-    tokensWithdrawnNorm
-  );
-
-  // extract lot ids
-  let changedLotIds = new Array<Bytes>();
-  for (let i = 0; i < changedLots.length; i++) {
-    changedLotIds.push(changedLots[i].id);
-  }
-
-  // create earnings entity
-  let earnings = new Earnings(buildEventId(event));
-  earnings.vault = vault.id;
-  earnings.account = account.id;
-  earnings.block = event.block.number;
-  earnings.sourceLots = changedLotIds;
-  //earnings.sourceLots = [];
-  //earnings.sourcedQuantities = [];
-
-  earnings.sharesRedeemed = sharesRedeemedNorm;
-  earnings.assetsWithdrawn = tokensWithdrawnNorm;
-  earnings.profit = profit;
-  //earnings.profit = BigDecimal.zero();
-  earnings.save();
-  return earnings;
 }

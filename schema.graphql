@@ -2,10 +2,13 @@
 type ERC20Token @entity {
   "Token address"
   id: Bytes!
+
   "Number of decimals for this Token"
   decimals: Int!
+
   "Name of the Token"
   name: String!
+
   "Symbol of the Token"
   symbol: String!
 }
@@ -13,12 +16,16 @@ type ERC20Token @entity {
 type ERC4626Vault @entity {
   "Vault address"
   id: Bytes!
+
   "Assumed to never change. Maybe reference ERC20Token instead?"
   underlying: ERC20Token!
+
   "Name of the vault"
   name: String!
+
   "Symbol of the vault"
   symbol: String!
+
   "Number of decimals for the vault's share token"
   decimals: Int!
   # totalAssets: BigInt!
@@ -35,25 +42,37 @@ type NonERC4626Contract @entity @immutable {
 type Account @entity {
   "EOA or contract address of the account"
   id: Bytes!
+
   "Current and historical vault positions this account has"
   positions: [AccountPosition!]! @derivedFrom(field: "account")
 }
 
+"""
+Used to track an account's current & historical position in a specific vault. 
+"""
 type AccountPosition @entity {
   "Concatenation of accountAddress+vaultAddress"
   id: Bytes!
+
+  "The account this position is for"
   account: Account!
+
   "The vault this position is for"
   vault: ERC4626Vault!
+
   "The number of vault shares the account currently has."
   shares: BigDecimal!
+
+  "The amounts earned on this account's vault withdrawals."
   earnings: [Earnings!]!
+
+  "The account's outstanding deposits that have not yet been withdrawn."
   unconsumedLots: [CostBasisLot!]!
 }
 
 """
 Keeps track of the cost basis of an account's vault position. 
-This data is used to calculate the profit realized when an account performs a withdraw.
+This data is used to calculate the earnings realized when an account performs a withdraw.
 """
 type CostBasisLot @entity {
   "Concatenation of txHash+logIdx"
@@ -66,16 +85,29 @@ type CostBasisLot @entity {
   This value is normalized with respect to the vault's asset token decimals.
   """
   pricePerShare: BigDecimal!
+
+  "The number of underlying tokens that were exchanged for shares."
   tokensInLot: BigDecimal!
+
+  "The number of shares that the account received."
   sharesInLot: BigDecimal!
+
+  """
+  The number of shares that have not been withdrawn from this lot yet. 
+  If this is zero, then all of the shares from the lot have been withdrawn.
+  """
   unconsumedShares: BigDecimal!
 }
 
-
+"""
+Intermediate entity used by the Earnings entity
+"""
 type LotConsumingAction @entity @immutable {
   "Concatenation of txHash+logIdx+lotId"
   id: Bytes!
+
   lot: CostBasisLot!
+
   sharesConsumed: BigDecimal!
 }
 
@@ -86,44 +118,82 @@ Earnings are calculated using LIFO.
 type Earnings @entity {
   "Concatenation of txHash+logIdx"
   id: Bytes!
-  vault: ERC4626Vault!
-  account: Account!
 
   block: BigInt!
 
+  vault: ERC4626Vault!
+
+  account: Account!
+
+  "The number of shares that were redeemed for underlying tokens."
   sharesRedeemed: BigDecimal!
+
+  "The number of underlying tokens that were withdrawn."
   assetsWithdrawn: BigDecimal!
+
+  """
+  The amount of profit earned from the withdrawal. 
+  Negative if the transaction was made at a loss. 
+  Measured using the underlying asset token.
+  """
   profit: BigDecimal!
 
+  """
+  The original source(s) of shares that are being redeemed.
+  These sources are used to establish a cost basis price for calculating profit.
+  """
   sourceLots: [LotConsumingAction!]!
 }
 
 type DepositEvent @entity @immutable {
   "Concatenation of txHash+logIdx"
   id: Bytes!
-  "The vault deposited to"
-  vault: ERC4626Vault!
-  "The beneficiary of the deposit"
-  account: Account!
-  "The address that initiated the deposit event (msg.sender)"
-  sender: Bytes!
-  "The amount of assets deposited. Normalized for the asset's decimals."
-  assetsDeposited: BigDecimal!
-  "The amount of shares minted. Normalized for the vault's decimals."
-  sharesMinted: BigDecimal!
-  "The lot created by this deposit"
-  lot: CostBasisLot!
 
   block: BigInt!
+
+  "The log index of the deposit event"
+  logIndex: BigInt!
+
+  "The transaction the deposit event came from"
+  transaction: Transaction!
+
+  "The vault deposited to"
+  vault: ERC4626Vault!
+
+  "The beneficiary of the deposit"
+  account: Account!
+
+  "The address that initiated the deposit event (msg.sender)"
+  sender: Bytes!
+
+  "The amount of assets deposited. Normalized for the asset's decimals."
+  assetsDeposited: BigDecimal!
+
+  "The amount of shares minted. Normalized for the vault's decimals."
+  sharesMinted: BigDecimal!
+
+  "The lot created by this deposit"
+  lot: CostBasisLot!
 }
 
 type TransferEvent @entity @immutable {
   "Concatenation of txHash+logIdx"
   id: Bytes!
+
+  block: BigInt!
+
+  "The log index of the transfer event"
+  logIndex: BigInt!
+
+  "The transaction the transfer event came from"
+  transaction: Transaction!
+
   "The vault whose share token is being transferred"
   vault: ERC4626Vault!
+
   "The account sending the share token"
   sender: Account!
+
   "The account receiving the share token"
   receiver: Account!
 
@@ -134,25 +204,59 @@ type TransferEvent @entity @immutable {
 
   "The sender's earnings"
   senderEarnings: Earnings!
-
-  block: BigInt!
 }
 
 type WithdrawEvent @entity @immutable {
   "Concatenation of txHash+logIdx"
   id: Bytes!
+
+  block: BigInt!
+
+  "The log index of the withdraw event"
+  logIndex: BigInt!
+
+  "The transaction the withdraw event came from"
+  transaction: Transaction!
+
   "The vault withdrawn from"
   vault: ERC4626Vault!
+
   "The account being withdrawn from"
   account: Account!
+
   "The address that initiated the deposit event (msg.sender)"
   sender: Bytes!
+
   "The amount of assets withdrawn. Normalized for the asset's decimals."
   assetsWithdrawn: BigDecimal!
+
   "The amount of shares redeemed. Normalized for the vault's decimals."
   sharesRedeemed: BigDecimal!
 
+  "The earnings/profit/loss associated with the withdrawal"
   earnings: Earnings!
+}
 
+"Entity for representing transactions"
+type Transaction @entity @immutable {
+  "Transaction hash"
+  id: Bytes!
+
+  "Block number"
   block: BigInt!
+
+  "Block timestamp"
+  timestamp: BigInt!
+
+  "Transaction Index"
+  index: BigInt!
+
+  "The deposit events from this transaction"
+  depositEvents: [DepositEvent!]! @derivedFrom(field: "transaction")
+
+  "The withdraw events from this transaction"
+  withdrawEvents: [WithdrawEvent!]! @derivedFrom(field: "transaction")
+
+  "The transfer events from this transaction"
+  transferEvents: [TransferEvent!]! @derivedFrom(field: "transaction")
 }

@@ -3,6 +3,8 @@ import { ERC20Token as ERC20Entity } from "../../generated/schema";
 import { ERC20 as ERC20RPC } from "../../generated/ERC4626Vault/ERC20";
 import { DSToken as DsTokenRPC } from "../../generated/ERC4626Vault/DSToken";
 
+// Attempts to load the ERC20 entity associated with `address`.
+// If no entity is found, fails with log.critical
 export function getERC20orFail(address: Bytes): ERC20Entity {
   let converted = Address.fromBytes(address);
   let entity = ERC20Entity.load(converted);
@@ -14,6 +16,9 @@ export function getERC20orFail(address: Bytes): ERC20Entity {
   return entity!;
 }
 
+// Attempts to load the ERC20 entity associated with `address`.
+// If no entity is found, attempts to validate the contract and create an entity.
+// If the contract at `address` reverts when accessing ERC20 methods, null is returned.
 export function getOrImportERC20(address: Address): ERC20Entity | null {
   // check if we've seen this contract before
   let entity = ERC20Entity.load(address);

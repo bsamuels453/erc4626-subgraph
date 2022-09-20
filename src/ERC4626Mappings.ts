@@ -5,11 +5,6 @@ import {
   updateAccountForDeposit,
   updateAccountForWithdraw,
 } from "./Accounting";
-import {
-  isDepositEventAnomalous,
-  isTransferEventAnomalous,
-  isWithdrawEventAnomalous,
-} from "./Util";
 import { ERC4626 as ERC4626RPC } from "../generated/ERC4626Vault/ERC4626";
 import { createCostBasisEntity } from "./entity/CostBasisEntity";
 import {
@@ -18,13 +13,14 @@ import {
   createWithdrawEntity,
 } from "./entity/MiscEntity";
 import { createEarningsEntity } from "./entity/EarningsEntity";
+import {
+  isDepositEventAnomalous,
+  isTransferEventAnomalous,
+  isWithdrawEventAnomalous,
+} from "./EventFilters";
 
 export function handleDepositEvent(event: Deposit): void {
-  if (!isContractERC4626(event.address)) {
-    return;
-  }
-
-  if (isDepositEventAnomalous(event)) {
+  if (!isContractERC4626(event.address) || isDepositEventAnomalous(event)) {
     return;
   }
 
@@ -62,7 +58,6 @@ export function handleWithdrawEvent(event: Withdraw): void {
   );
 
   updateAccountForWithdraw(vault, owner, earnings, event);
-
   createWithdrawEntity(vault, owner, event.params.sender, earnings, event);
 
   // updateVaultMetrics(...)
@@ -101,8 +96,6 @@ export function handleTransferEvent(event: Transfer): void {
 
   let receiver = getOrCreateAccount(event.params.to);
   updateAccountForDeposit(vault, receiver, costBasis);
-
-  // create the entity
   createTransferEntity(vault, sender, receiver, costBasis, earnings, event);
 
   // updateVaultMetrics(...)

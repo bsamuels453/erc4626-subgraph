@@ -11,6 +11,8 @@ import { getOrImportERC20 } from "./ERC20Entity";
 
 import { ERC4626Template } from "../../generated/templates";
 
+// Attempts to load the ERC4626 entity associated with `address`.
+// If no entity is found, fails with log.critical
 export function getERC4626orFail(address: Bytes): ERC4626Entity {
   let converted = Address.fromBytes(address);
   let entity = ERC4626Entity.load(converted);
@@ -22,6 +24,11 @@ export function getERC4626orFail(address: Bytes): ERC4626Entity {
   return entity!;
 }
 
+/*
+Checks if the contract at `address` is an ERC4626 contract.
+If the contract implements ERC4626 & we haven't seen it before,
+it will be registered. 
+*/
 export function isContractERC4626(address: Address): boolean {
   if (!doesContractImplement4626(address)) {
     return false;
@@ -71,6 +78,14 @@ function markContractAsNon4626(address: Address): void {
   entity.save();
 }
 
+/*
+Checks if contract at `address` is ERC4626-compliant.
+If the contract has failed these checks in the past, it will be skipped & the func will return false.
+If the contract has passed these checks in the past, it will be skipped & the func will return true.
+If the contract has never passed or failed these checks, a series of calls will be issued that 
+try to verify if the contract implements 4626. This is a very RPC-heavy procedure and should be avoided
+as much as possible. 
+*/
 function doesContractImplement4626(address: Address): boolean {
   // check if we've seen this contract before
   let cached = NonERC4626Entity.load(address);
