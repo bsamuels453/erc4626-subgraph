@@ -27,3 +27,5 @@ yarn.lock
 yarn-error.log
 out/
 config.json.example
+
+LICENSE
