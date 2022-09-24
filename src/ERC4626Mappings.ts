@@ -34,7 +34,7 @@ export function handleDepositEvent(event: Deposit): void {
   );
 
   let account = getOrCreateAccount(event.params.owner);
-  updateAccountForDeposit(vault, account, costBasis);
+  updateAccountForDeposit(vault, account, costBasis, event);
   createDepositEntity(vault, account, event.params.sender, costBasis, event);
 
   // updateVaultMetrics(...)
@@ -95,7 +95,7 @@ export function handleTransferEvent(event: Transfer): void {
   );
 
   let receiver = getOrCreateAccount(event.params.to);
-  updateAccountForDeposit(vault, receiver, costBasis);
+  updateAccountForDeposit(vault, receiver, costBasis, event);
   createTransferEntity(vault, sender, receiver, costBasis, earnings, event);
 
   // updateVaultMetrics(...)

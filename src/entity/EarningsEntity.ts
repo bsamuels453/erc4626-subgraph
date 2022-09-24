@@ -31,12 +31,39 @@ export function createEarningsEntity(
     sharesRedeemed,
     vault.decimals
   );
+  let unaccountableShares: BigDecimal | null = null;
 
   let underlying = getERC20orFail(vault.underlying);
   let tokensWithdrawnNorm = convertTokenToDecimal(
     tokensWithdrawn,
     underlying.decimals
   );
+
+  // Check to see if there's  been any account errors introduced by non-erc4626 transfers.
+  // In the future, we should consider treating these unaccountable shares as acquired at price=0.
+  if (sharesRedeemedNorm.gt(accountPosition.accountableShares)) {
+    if (
+      !accountPosition.account
+        .toHexString()
+        .includes("0xda1fd36cfc50ed03ca4dd388858a78c904379fb3")
+    ) {
+      log.warning(
+        "An earnings event is trying to redeem more shares than we can account for. Account: {} Shares redeemed: {} Shares we can account for: {} Vault: {} TxHash: {} Real share balance from AccountPosition: {}",
+        [
+          accountPosition.account.toHexString(),
+          sharesRedeemedNorm.toString(),
+          accountPosition.accountableShares.toString(),
+          vault.id.toHexString(),
+          event.transaction.hash.toHexString(),
+          accountPosition.shares.toString(),
+        ]
+      );
+    }
+    unaccountableShares = sharesRedeemedNorm.minus(
+      accountPosition.accountableShares
+    );
+    sharesRedeemedNorm = accountPosition.accountableShares;
+  }
 
   // figure out profit + tainted lots
   let changedLots = calculateLotConsumptionLIFO(
@@ -66,6 +93,7 @@ export function createEarningsEntity(
   earnings.sharesRedeemed = sharesRedeemedNorm;
   earnings.assetsWithdrawn = tokensWithdrawnNorm;
   earnings.profit = profit;
+  earnings.unaccountableShares = unaccountableShares;
   earnings.save();
   return earnings;
 }
@@ -78,26 +106,8 @@ function calculateLotConsumptionLIFO(
   let changedLots = new Array<LotConsumingAction>();
   let sharesRemaining = sharesToRedeem;
 
-  let blockGuard = BigInt.fromI64(9_223_372_036_854_775_807);
-
   for (let i = accountPosition.unconsumedLots.length - 1; i >= 0; i--) {
     let lot = CostBasisLot.load(accountPosition.unconsumedLots[i])!;
-    // Make sure the lot ordering has not been tampered with.
-    // I was suspicious that array ordering was not preserved; this can be removed once that suspicion is cleared up.
-    if (lot.block.gt(blockGuard)) {
-      log.critical(
-        "Error, lot {} was found to have a higher block number {} than guard {}. tx id: {}",
-        [
-          lot.id.toHexString(),
-          lot.block.toString(),
-          blockGuard.toString(),
-          event.transaction.hash.toHexString(),
-        ]
-      );
-    } else {
-      blockGuard = lot.block;
-    }
-
     let sharesToConsume: BigDecimal;
 
     if (sharesRemaining.lt(lot.unconsumedShares)) {
@@ -119,7 +129,7 @@ function calculateLotConsumptionLIFO(
     }
     if (i == 0) {
       // we've got a problem, this account has shares we don't have a cost basis for
-      log.error(
+      log.critical(
         "Cannot account for the source of a user's shares during earnings calculations. \
         This often happens if the account received the shares through an airdrop or other non-4626 mechanism. \
         Account: {} Vault: {} Tx: {} Shares unaccounted for: {}",

@@ -1,4 +1,13 @@
-import { BigDecimal, BigInt, Bytes, ethereum } from "@graphprotocol/graph-ts";
+import {
+  Address,
+  BigDecimal,
+  BigInt,
+  Bytes,
+  ethereum,
+  log,
+} from "@graphprotocol/graph-ts";
+import { ERC4626 as ERC4626RPC } from "../generated/ERC4626Vault/ERC4626";
+import { ERC4626Vault } from "../generated/schema";
 
 export let ZERO_BI = BigInt.fromI32(0);
 export let ONE_BI = BigInt.fromI32(1);
@@ -24,4 +33,20 @@ export function convertTokenToDecimal(
     return tokenAmount.toBigDecimal();
   }
   return tokenAmount.toBigDecimal().div(exponentToBigDecimal(exchangeDecimals));
+}
+
+export function rpcGetERC4626AccountBalance(
+  vault: ERC4626Vault,
+  address: Bytes
+): BigDecimal {
+  let vaultContract = ERC4626RPC.bind(Address.fromBytes(vault.id));
+  let res = vaultContract.try_balanceOf(Address.fromBytes(address));
+  if (res.reverted) {
+    log.critical(
+      "call to vault.balanceOf(address) reverted; Vault addr: {} Account addr: {}",
+      [vault.id.toHexString(), address.toHexString()]
+    );
+  }
+
+  return convertTokenToDecimal(res.value, vault.decimals);
 }

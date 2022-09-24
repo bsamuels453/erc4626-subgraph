@@ -5,16 +5,24 @@ import {
   ERC4626Vault,
   Earnings,
 } from "../generated/schema";
-import { getOrCreateAccountPosition } from "./entity/AccountEntity";
+import {
+  getAccountPositionOrFail,
+  getOrCreateAccountPosition,
+} from "./entity/AccountEntity";
+import { rpcGetERC4626AccountBalance } from "./Util";
 
 export function updateAccountForDeposit(
   vault: ERC4626Vault,
   owner: Account,
-  costBasis: CostBasisLot
+  costBasis: CostBasisLot,
+  event: ethereum.Event
 ): void {
   let accountPosition = getOrCreateAccountPosition(vault, owner);
 
-  accountPosition.shares = accountPosition.shares.plus(costBasis.sharesInLot);
+  accountPosition.accountableShares = accountPosition.accountableShares.plus(
+    costBasis.sharesInLot
+  );
+  accountPosition.shares = rpcGetERC4626AccountBalance(vault, owner.id);
 
   let unconsumedLots = accountPosition.unconsumedLots;
   unconsumedLots.push(costBasis.id);
@@ -29,9 +37,9 @@ export function updateAccountForWithdraw(
   earnings: Earnings,
   event: ethereum.Event
 ): void {
-  let accountPosition = getOrCreateAccountPosition(vault, owner);
+  let accountPosition = getAccountPositionOrFail(vault, owner);
 
-  // Check each lot to see if it's been consumed. This code only works with LIFO.
+  // Check each accountPosition cost basis lot & remove ones that were consumed when earnings were calculated. This code only works with LIFO.
   let unconsumedLots = accountPosition.unconsumedLots;
   for (let i = accountPosition.unconsumedLots.length - 1; i >= 0; i--) {
     let lot = CostBasisLot.load(accountPosition.unconsumedLots[i])!;
@@ -47,22 +55,26 @@ export function updateAccountForWithdraw(
   historicalEarnings.push(earnings.id);
 
   if (
-    accountPosition.shares.minus(earnings.sharesRedeemed).lt(BigDecimal.zero())
+    accountPosition.accountableShares
+      .minus(earnings.sharesRedeemed)
+      .lt(BigDecimal.zero())
   ) {
-    log.info(
+    log.critical(
       "Transaction would send user's shares below zero; TX: {}  Previous account position: {}  Amount of shares redeemed: {} Owner: {} ",
       [
         event.transaction.hash.toHexString(),
-        accountPosition.shares.toString(),
+        accountPosition.accountableShares.toString(),
         earnings.sharesRedeemed.toString(),
         owner.id.toHexString(),
       ]
     );
   }
 
-  accountPosition.shares = accountPosition.shares.minus(
+  accountPosition.accountableShares = accountPosition.accountableShares.minus(
     earnings.sharesRedeemed
   );
+  accountPosition.shares = rpcGetERC4626AccountBalance(vault, owner.id);
+
   accountPosition.earnings = historicalEarnings;
   accountPosition.unconsumedLots = unconsumedLots;
   accountPosition.save();

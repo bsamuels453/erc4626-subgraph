@@ -60,7 +60,17 @@ type AccountPosition @entity {
   "The vault this position is for"
   vault: ERC4626Vault!
 
-  "The number of vault shares the account currently has."
+  """
+  The amount of shares assigned to this position where the subgraph can account for their source.
+  If this number is different than AccountPosition.shares, then shares have been transferred/minted
+  to this account using a non-ERC4626 mechanism.
+  """
+  accountableShares: BigDecimal!
+
+  """
+  The amount of shares assigned to this position. 
+  Updated on deposit, withdraw, or transfer events that touch this account.
+  """
   shares: BigDecimal!
 
   "The amounts earned on this account's vault withdrawals."
@@ -143,6 +153,13 @@ type Earnings @entity {
   These sources are used to establish a cost basis price for calculating profit.
   """
   sourceLots: [LotConsumingAction!]!
+
+  """
+  The amount of shares redeemed in this earnings event that cannot be accounted for.
+  This indicates an accounting error that was probably caused by a non-4626 transfer/airdrop/etc.
+  If null, then all shares are accounted for.
+  """
+  unaccountableShares: BigDecimal
 }
 
 type DepositEvent @entity @immutable {
