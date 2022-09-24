@@ -13,11 +13,11 @@ clean :
 	rm -rf ./build
 	rm -rf ./generated
 
-lint-check :; yarn prettier --check './**'
+lint-check :; yarn prettier --check ./src ./abis
 
 lint-fix :
 	yarn sort-package-json
-	yarn prettier --write ./**
+	yarn prettier --write ./src ./abis
 
 
 build :
