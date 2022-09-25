@@ -132,12 +132,13 @@ function calculateLotConsumptionLIFO(
       log.critical(
         "Cannot account for the source of a user's shares during earnings calculations. \
         This often happens if the account received the shares through an airdrop or other non-4626 mechanism. \
-        Account: {} Vault: {} Tx: {} Shares unaccounted for: {}",
+        Account: {} Vault: {} Tx: {} Shares unaccounted for: {} Shares to be redeemed: {}",
         [
           accountPosition.account.toHexString(),
           event.address.toHexString(),
           event.transaction.hash.toHexString(),
           sharesRemaining.toString(),
+          sharesToRedeem.toString(),
         ]
       );
     }
