@@ -24,6 +24,7 @@ export function getOrCreateTransactionEntity(
     newTxEntity.block = event.block.number;
     newTxEntity.timestamp = event.block.timestamp;
     newTxEntity.index = event.transaction.index;
+    newTxEntity.from = event.transaction.from;
     newTxEntity.save();
     return newTxEntity;
   }

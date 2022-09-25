@@ -40,10 +40,11 @@ export function isTransferEventAnomalous(event: Transfer): boolean {
     ]);
     return true;
   }
-  // do not treat mint/burn transfers as earnings events
+  // do not treat mint transfers as a deposit event
   if (event.params.from == Address.zero()) {
     return true;
   }
+  // do not treat burn transfers as an earnings event
   if (event.params.to == Address.zero()) {
     return true;
   }

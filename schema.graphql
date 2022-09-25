@@ -265,6 +265,9 @@ type Transaction @entity @immutable {
   "Block timestamp"
   timestamp: BigInt!
 
+  "tx.origin"
+  from: Bytes!
+
   "Transaction Index"
   index: BigInt!
 
