@@ -1,5 +1,8 @@
 import { Address, BigInt, log } from "@graphprotocol/graph-ts";
 import { Deposit, Transfer, Withdraw } from "../generated/ERC4626Vault/ERC4626";
+import { DebugMintEvent } from "../generated/schema";
+import { buildEventId, convertTokenToDecimal } from "./Util";
+import { ERC4626 as ERC4626RPC } from "../generated/ERC4626Vault/ERC4626";
 
 export function isDepositEventAnomalous(event: Deposit): boolean {
   if (event.params.assets == BigInt.zero()) {
@@ -42,6 +45,7 @@ export function isTransferEventAnomalous(event: Transfer): boolean {
   }
   // do not treat mint transfers as a deposit event
   if (event.params.from == Address.zero()) {
+    createMintEvent(event);
     return true;
   }
   // do not treat burn transfers as an earnings event
@@ -50,4 +54,16 @@ export function isTransferEventAnomalous(event: Transfer): boolean {
   }
 
   return false;
+}
+
+function createMintEvent(event: Transfer): void {
+  let id = buildEventId(event);
+  let mintEvent = new DebugMintEvent(id);
+  let rpc = ERC4626RPC.bind(event.address);
+  mintEvent.vault = event.address;
+  mintEvent.receiver = event.params.to;
+  mintEvent.amount = convertTokenToDecimal(event.params.value, rpc.decimals());
+  mintEvent.txHash = event.transaction.hash;
+  mintEvent.blockNum = event.block.number;
+  mintEvent.save();
 }

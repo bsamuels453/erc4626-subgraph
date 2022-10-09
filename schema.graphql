@@ -31,6 +31,18 @@ type ERC4626Vault @entity {
   # totalAssets: BigInt!
   # totalAssetsValueUSDC
   # HasAccountingErrors
+
+  "The block in which this vault was first detected by the subgraph."
+  firstBlock: BigInt!
+
+  "Whether any serious accounting problems have been detected while indexing this vault."
+  accountingErrata: Boolean!
+
+  """
+  This value is set to true if there have been withdraws/redemptions from this vault with no identifiable source.
+  This may be due to airdropped shares, or incorrect accounting on the vault's side with regards to how it handles deposits.
+  """
+  containsAirdroppedShares: Boolean!
 }
 
 " Used to keep track of contracts emitting 4626-matching events, but are not 4626 compliant."
@@ -279,4 +291,15 @@ type Transaction @entity @immutable {
 
   "The transfer events from this transaction"
   transferEvents: [TransferEvent!]! @derivedFrom(field: "transaction")
+}
+
+type DebugMintEvent @entity @immutable {
+  id: Bytes!
+
+  txHash: Bytes!
+  blockNum: BigInt!
+  vault: Bytes!
+  receiver: Bytes!
+  amount: BigDecimal!
+
 }

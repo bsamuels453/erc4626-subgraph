@@ -1,4 +1,11 @@
-import { log, BigInt, Address, Bytes } from "@graphprotocol/graph-ts";
+import {
+  log,
+  BigInt,
+  Address,
+  Bytes,
+  dataSource,
+  ethereum,
+} from "@graphprotocol/graph-ts";
 
 import {
   ERC20Token,
@@ -29,7 +36,10 @@ Checks if the contract at `address` is an ERC4626 contract.
 If the contract implements ERC4626 & we haven't seen it before,
 it will be registered. 
 */
-export function isContractERC4626(address: Address): boolean {
+export function isContractERC4626(
+  address: Address,
+  event: ethereum.Event
+): boolean {
   if (!doesContractImplement4626(address)) {
     return false;
   } else {
@@ -38,7 +48,7 @@ export function isContractERC4626(address: Address): boolean {
     if (entity != null) {
       return true;
     } else {
-      registerERC4626Vault(address);
+      registerERC4626Vault(address, event);
       return true;
     }
   }
@@ -50,7 +60,7 @@ export function isContractERC4626(address: Address): boolean {
 Assumes ERC20Token entity already exists for the vault and its underlying.
 Assumes validation checks have already been run against address for spec compliance.
 */
-function registerERC4626Vault(address: Address): void {
+function registerERC4626Vault(address: Address, event: ethereum.Event): void {
   let token = ERC20Token.load(address);
   if (token === null) {
     log.critical("Contract was not imported as an ERC20: {}", [
@@ -68,6 +78,10 @@ function registerERC4626Vault(address: Address): void {
   vaultEntity.name = token.name;
   vaultEntity.symbol = token.symbol;
   vaultEntity.decimals = token.decimals;
+  vaultEntity.firstBlock = event.block.number;
+  vaultEntity.accountingErrata = false;
+  vaultEntity.earningsErrataOne = false;
+  vaultEntity.earningsErrataTwo = false;
   vaultEntity.save();
 
   ERC4626Template.create(address);
@@ -144,6 +158,8 @@ function doesContractImplement4626(address: Address): boolean {
     "0x0000000000000000000000000000000000000000"
   );
 
+  // the maxAction endpoints tend to be incorrectly implemented
+  /*
   let maxDeposit = contract.try_maxDeposit(zero_address);
   if (maxDeposit.reverted) {
     log.warning(
@@ -182,6 +198,7 @@ function doesContractImplement4626(address: Address): boolean {
     markContractAsNon4626(address);
     return false;
   }
+  */
 
   // check if the underlying asset is a valid erc20
   let underlyingEntity = getOrImportERC20(asset.value);

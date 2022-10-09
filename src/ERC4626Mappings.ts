@@ -20,7 +20,10 @@ import {
 } from "./EventFilters";
 
 export function handleDepositEvent(event: Deposit): void {
-  if (!isContractERC4626(event.address) || isDepositEventAnomalous(event)) {
+  if (
+    !isContractERC4626(event.address, event) ||
+    isDepositEventAnomalous(event)
+  ) {
     return;
   }
 

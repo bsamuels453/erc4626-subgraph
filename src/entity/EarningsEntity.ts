@@ -42,12 +42,10 @@ export function createEarningsEntity(
   // Check to see if there's  been any account errors introduced by non-erc4626 transfers.
   // In the future, we should consider treating these unaccountable shares as acquired at price=0.
   if (sharesRedeemedNorm.gt(accountPosition.accountableShares)) {
-    if (
-      !accountPosition.account
-        .toHexString()
-        .includes("0xda1fd36cfc50ed03ca4dd388858a78c904379fb3")
-    ) {
-      log.warning(
+    if (accountPosition.accountableShares.equals(BigDecimal.zero())) {
+      vault.containsAirdroppedShares = true;
+      vault.save();
+      log.info(
         "An earnings event is trying to redeem more shares than we can account for. Account: {} Shares redeemed: {} Shares we can account for: {} Vault: {} TxHash: {} Real share balance from AccountPosition: {}",
         [
           accountPosition.account.toHexString(),
@@ -58,7 +56,25 @@ export function createEarningsEntity(
           accountPosition.shares.toString(),
         ]
       );
+    } else {
+      if (sharesRedeemedNorm.notEqual(accountPosition.shares)) {
+        // suggests that deposits are occurring without any Deposit events
+        vault.accountingErrata = true;
+        vault.save();
+        log.warning(
+          "An earnings event is trying to redeem more shares than we can account for. Account: {} Shares redeemed: {} Shares we can account for: {} Vault: {} TxHash: {} Real share balance from AccountPosition: {}",
+          [
+            accountPosition.account.toHexString(),
+            sharesRedeemedNorm.toString(),
+            accountPosition.accountableShares.toString(),
+            vault.id.toHexString(),
+            event.transaction.hash.toHexString(),
+            accountPosition.shares.toString(),
+          ]
+        );
+      }
     }
+
     unaccountableShares = sharesRedeemedNorm.minus(
       accountPosition.accountableShares
     );

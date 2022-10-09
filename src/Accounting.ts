@@ -59,6 +59,8 @@ export function updateAccountForWithdraw(
       .minus(earnings.sharesRedeemed)
       .lt(BigDecimal.zero())
   ) {
+    vault.accountingErrata = true;
+    vault.save();
     log.critical(
       "Transaction would send user's shares below zero; TX: {}  Previous account position: {}  Amount of shares redeemed: {} Owner: {} ",
       [
