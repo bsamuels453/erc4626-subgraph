@@ -29,6 +29,7 @@ export function getOrCreateAccountPosition(
     accountPosition.accountableShares = BigDecimal.zero();
     accountPosition.unconsumedLots = [];
     accountPosition.earnings = [];
+    accountPosition.accountingErrata = false;
     accountPosition.save();
     return accountPosition;
   }

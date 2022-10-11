@@ -45,6 +45,8 @@ export function createEarningsEntity(
     if (accountPosition.accountableShares.equals(BigDecimal.zero())) {
       vault.containsAirdroppedShares = true;
       vault.save();
+      accountPosition.accountingErrata = true;
+      accountPosition.save();
       log.info(
         "An earnings event is trying to redeem more shares than we can account for. Account: {} Shares redeemed: {} Shares we can account for: {} Vault: {} TxHash: {} Real share balance from AccountPosition: {}",
         [
@@ -61,6 +63,8 @@ export function createEarningsEntity(
         // suggests that deposits are occurring without any Deposit events
         vault.accountingErrata = true;
         vault.save();
+        accountPosition.accountingErrata = true;
+        accountPosition.save();
         log.warning(
           "An earnings event is trying to redeem more shares than we can account for. Account: {} Shares redeemed: {} Shares we can account for: {} Vault: {} TxHash: {} Real share balance from AccountPosition: {}",
           [

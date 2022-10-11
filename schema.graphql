@@ -43,6 +43,52 @@ type ERC4626Vault @entity {
   This may be due to airdropped shares, or incorrect accounting on the vault's side with regards to how it handles deposits.
   """
   containsAirdroppedShares: Boolean!
+
+  """
+  The latest APY estimation for this Vault. This estimation is based on the exponential moving average of the vault's 
+  price per share, which itself is calculated based on withdraw/redemption events. The EMA uses a half time of 15 days.
+
+  If null, there is either:
+  1. Not enough data to generate an estimation
+  2. Accounting errors or other errata that are preventing the subgraph from generating an estimation.
+  """
+  estimatedAPY: BigDecimal
+  latestAPYMeasurement: VaultPerformanceSample
+  historicalPerformance: [VaultPerformanceSample!]! @derivedFrom(field: "vault")
+
+  "The vault's reported totalAssets. Normalized to the underlying token's decimals."
+  assetTvl: BigDecimal!
+
+  """
+  The entity representing the latest measurement for the vault's totalAssets. 
+  Use this to figure out how long it's been since vault.tvl was last updated.
+  """
+  latestTVLMeasurement: VaultTVLMeasurement
+
+  "All historical TVL measurements for this vault"
+  historicalTVL: [VaultTVLMeasurement!]! @derivedFrom(field: "vault")
+
+}
+
+"""
+Used to track historical TVL data for each vault.
+New measurements are only taken when a user deposits, withdraws, or transfers to/from the vault.
+"""
+type VaultTVLMeasurement @entity @immutable {
+  "Concatenation of vaultAddress+blockHash"
+  id: Bytes!
+  
+  "The vault the measurement is for"
+  vault: ERC4626Vault!
+
+  "The block height this measurement was taken in"
+  block: BigInt!
+
+  "The timestamp of the block this measurement was taken in"
+  timestamp: BigInt!
+
+  "The amount of assets the vault reported under its management via totalAssets()"
+  reportedAssets: BigDecimal!
 }
 
 " Used to keep track of contracts emitting 4626-matching events, but are not 4626 compliant."
@@ -90,6 +136,9 @@ type AccountPosition @entity {
 
   "The account's outstanding deposits that have not yet been withdrawn."
   unconsumedLots: [CostBasisLot!]!
+
+  "Whether any accounting issues have been detected while indexing this account's vault position."
+  accountingErrata: Boolean!
 }
 
 """
@@ -301,5 +350,15 @@ type DebugMintEvent @entity @immutable {
   vault: Bytes!
   receiver: Bytes!
   amount: BigDecimal!
+}
 
+type VaultPerformanceSample @entity @immutable {
+  id: Bytes!
+  vault: ERC4626Vault!
+  block: BigInt!
+  timestamp: BigInt!
+
+  pricePerShare: BigDecimal!
+
+  estimatedApy: BigDecimal!
 }

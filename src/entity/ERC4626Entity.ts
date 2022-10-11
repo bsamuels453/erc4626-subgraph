@@ -5,6 +5,7 @@ import {
   Bytes,
   dataSource,
   ethereum,
+  BigDecimal,
 } from "@graphprotocol/graph-ts";
 
 import {
@@ -17,6 +18,7 @@ import { ERC4626 as ERC4626RPC } from "../../generated/ERC4626Vault/ERC4626";
 import { getOrImportERC20 } from "./ERC20Entity";
 
 import { ERC4626Template } from "../../generated/templates";
+import { updateTVLMetrics } from "./TVLEntity";
 
 // Attempts to load the ERC4626 entity associated with `address`.
 // If no entity is found, fails with log.critical
@@ -80,9 +82,13 @@ function registerERC4626Vault(address: Address, event: ethereum.Event): void {
   vaultEntity.decimals = token.decimals;
   vaultEntity.firstBlock = event.block.number;
   vaultEntity.accountingErrata = false;
-  vaultEntity.earningsErrataOne = false;
-  vaultEntity.earningsErrataTwo = false;
+  vaultEntity.containsAirdroppedShares = false;
+  vaultEntity.estimatedAPY = null;
+  vaultEntity.latestAPYMeasurement = null;
+  vaultEntity.latestTVLMeasurement = null;
+  vaultEntity.assetTvl = BigDecimal.zero();
   vaultEntity.save();
+  updateTVLMetrics(vaultEntity, event);
 
   ERC4626Template.create(address);
 }

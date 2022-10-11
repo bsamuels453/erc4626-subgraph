@@ -18,6 +18,7 @@ import {
   isTransferEventAnomalous,
   isWithdrawEventAnomalous,
 } from "./EventFilters";
+import { updateTVLMetrics } from "./entity/TVLEntity";
 
 export function handleDepositEvent(event: Deposit): void {
   if (
@@ -40,7 +41,7 @@ export function handleDepositEvent(event: Deposit): void {
   updateAccountForDeposit(vault, account, costBasis, event);
   createDepositEntity(vault, account, event.params.sender, costBasis, event);
 
-  // updateVaultMetrics(...)
+  updateTVLMetrics(vault, event);
 }
 
 export function handleWithdrawEvent(event: Withdraw): void {
@@ -63,7 +64,7 @@ export function handleWithdrawEvent(event: Withdraw): void {
   updateAccountForWithdraw(vault, owner, earnings, event);
   createWithdrawEntity(vault, owner, event.params.sender, earnings, event);
 
-  // updateVaultMetrics(...)
+  updateTVLMetrics(vault, event);
 }
 
 export function handleTransferEvent(event: Transfer): void {
@@ -101,5 +102,5 @@ export function handleTransferEvent(event: Transfer): void {
   updateAccountForDeposit(vault, receiver, costBasis, event);
   createTransferEntity(vault, sender, receiver, costBasis, earnings, event);
 
-  // updateVaultMetrics(...)
+  updateTVLMetrics(vault, event);
 }

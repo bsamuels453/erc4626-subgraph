@@ -4,6 +4,7 @@ This subgraph indexes the deposit & withdrawal activity of all [ERC4626-complian
 
 It can be used to query an account's earnings, vault TVL statistics, and more.
 
+
 - [ERC-4626 Subgraph](#erc-4626-subgraph)
   - [Deployments](#deployments)
   - [Querying information about an account](#querying-information-about-an-account)
@@ -12,12 +13,14 @@ It can be used to query an account's earnings, vault TVL statistics, and more.
     - [Show how much an account has earned by withdrawing from a specific vault.](#show-how-much-an-account-has-earned-by-withdrawing-from-a-specific-vault)
     - [For a given transaction, display all of the ERC4626 deposit, withdraw, and transfer events.](#for-a-given-transaction-display-all-of-the-erc4626-deposit-withdraw-and-transfer-events)
   - [Querying information about a vault](#querying-information-about-a-vault)
+    - [Show all of the vaults for a specific asset, ordered by TVL.](#show-all-of-the-vaults-for-a-specific-asset-ordered-by-tvl)
   - [Developing](#developing)
     - [Installation](#installation)
   - [Notes for ERC4626 Vault Developers](#notes-for-erc4626-vault-developers)
     - [Vault Detection](#vault-detection)
     - [Proxies](#proxies)
     - [Extending the subgraph](#extending-the-subgraph)
+  - [Disclaimers](#disclaimers)
 
 ## Deployments
 
@@ -154,8 +157,24 @@ Ethereum Mainnet - [Deployment](https://thegraph.com/hosted-service/subgraph/bsa
 
 ## Querying information about a vault
 
-- Show all of the vaults for a specific asset, ordered by TVL.
-- Show the top 5 vaults by TVL gain over the past week.
+### Show all of the vaults for a specific asset, ordered by TVL.
+
+[Try it](https://api.thegraph.com/subgraphs/name/bsamuels453/erc4626/graphql?query=%7B%0A++erc4626Vaults%28%0A++++where%3A%7Bunderlying%3A+%220xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc2%22%7D%2C%0A++++orderBy%3A+assetTvl%0A++++orderDirection%3A+desc%0A++%29+%7B%0A++++id%0A++++name%0A++++firstBlock%0A++++assetTvl%0A++%7D%0A%7D)
+
+```
+{
+  erc4626Vaults(
+    where:{underlying: "0xunderlyingTokenAddress"},
+    orderBy: assetTvl
+    orderDirection: desc
+  ) {
+    id
+    name
+    firstBlock
+    assetTvl
+  }
+}
+```
 
 ## Developing
 
@@ -178,3 +197,6 @@ The subgraph detects new ERC4626 vaults by listening for ERC4626-specified depos
 If a protocol uses a proxy for its non-ERC4626 vaults, and later migrates to ERC4626, the subgraph will fail to account for user's deposits/withdraw activity before the migration. Users whose deposits occurred after the migration will not have any issues.
 
 ### Extending the subgraph
+
+
+## Disclaimers
