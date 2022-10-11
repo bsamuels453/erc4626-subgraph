@@ -18,8 +18,9 @@ It can be used to query an account's earnings, vault TVL statistics, and more.
     - [Installation](#installation)
   - [Notes for ERC4626 Vault Developers](#notes-for-erc4626-vault-developers)
     - [Vault Detection](#vault-detection)
-    - [Proxies](#proxies)
-    - [Extending the subgraph](#extending-the-subgraph)
+  - [Errata/Compatibility issues](#erratacompatibility-issues)
+    - [Proxy upgraded vaults](#proxy-upgraded-vaults)
+    - [Implicitly immutable fields](#implicitly-immutable-fields)
   - [Disclaimers](#disclaimers)
 
 ## Deployments
@@ -182,7 +183,7 @@ Ethereum Mainnet - [Deployment](https://thegraph.com/hosted-service/subgraph/bsa
 
 `make install`
 
-Make changes to `.env.` file as needed
+Make changes to `.env` file as needed
 
 Check out the makefile for build/deployment actions.
 
@@ -192,11 +193,20 @@ Check out the makefile for build/deployment actions.
 
 The subgraph detects new ERC4626 vaults by listening for ERC4626-specified deposit & withdraw events. Once detected, a series of contract calls are issued to verify whether the contract is ERC4626 compliant. The precise series of calls can be found in `function doesContractImplement4626(address: Address)`.
 
-### Proxies
+## Errata/Compatibility issues
+
+### Proxy upgraded vaults
 
 If a protocol uses a proxy for its non-ERC4626 vaults, and later migrates to ERC4626, the subgraph will fail to account for user's deposits/withdraw activity before the migration. Users whose deposits occurred after the migration will not have any issues.
 
-### Extending the subgraph
+Protocols Impacted:
+- mStable
 
+### Implicitly immutable fields
+
+Some fields defined by the ERC4626 spec are _expected_, but not required, to be immutable. The vault's `name`, `asset`, and `decimals` fall under this category. If a vault changes these fields as part of their normal operation,  delayed initialziation, or proxy implementation, the subgraph will fail to index those vaults properly.
+
+Protocols Impacted:
+- Sommelier
 
 ## Disclaimers
